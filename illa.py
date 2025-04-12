@@ -37,6 +37,7 @@ def evaluate(boys, jelouses, friends, root=None):
         else:
             # Generate a solution using DFS
             solution = dfs(graph, root, priority)
+            #print(f'graph: {graph}')
             # Check if the solution is valid
             if not is_correct(solution, jelouses, friends):
                 # If it's the last possible root and still invalid, print "impossible"
