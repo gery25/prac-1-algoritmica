@@ -1,2 +1,4 @@
 # prac-1-algoritmica
-codi de laparactica 1 de lasignatura algoritmica i cmplexitat
+codi de la paractica 1 de l'asignatura algoritmica i cmplexitat
+
+
