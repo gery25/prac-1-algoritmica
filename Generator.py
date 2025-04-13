@@ -3,7 +3,7 @@ import random
 import string
 from itertools import permutations
 
-def generar_exemples(inici=4, fi=16, num_exemples=20):
+def generar_exemples(inici=4, fi=10, num_exemples=20):
     # Crear carpetes
     carpeta_entrada = "exemples"
     carpeta_sortida = "solucions"
