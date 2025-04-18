@@ -1,7 +1,27 @@
 import os
 from itertools import permutations
+import time
+
+def decoreitor(funcio):
+    """
+    Decorator to measure the execution time of a function.
+    """
+    def funcio_wrapper(*args, **kwargs):
+        print("Starting DFS")
+        temps_inici = time.time()
+        resultat = funcio(*args, **kwargs)
+        temps_final = time.time()
+        temps_total = temps_final - temps_inici
+        print(f'Time taken: {temps_total} seconds')
+        return resultat
+    return funcio_wrapper
+
 
 def illa(nom_arxiu_entrada):
+    """
+    Reads the input file and builds dictionaries for jealousies and friendships,
+    as well as a list of boys.
+    """
     # Check if the input file exists
     if not os.path.exists(nom_arxiu_entrada):
         print(f"File not found: {nom_arxiu_entrada}")
@@ -14,7 +34,7 @@ def illa(nom_arxiu_entrada):
             lines.append(line.strip())
 
     # Build dictionaries for jealousies and friendships, and a list of boys
-    jelouses = {}  # Who is jealous of who
+    jelouses = {}  # Who is jelouses of who
     friends = {}   # Who is friends with who
     boys = []      # List of all boys
     for line in lines:
@@ -25,12 +45,26 @@ def illa(nom_arxiu_entrada):
     return boys, jelouses, friends
 
 
+def boys_generator(boys):
+    """
+    Generator to iterate over the list of boys.
+    """
+    for boy in boys:
+        yield boy
+
+
 def evaluate(boys, jelouses, friends, root=None):
+    """
+    Evaluates the solution by finding possible roots, building the graph,
+    and checking if the solution is valid.
+    """
+    boys_gen = boys_generator(boys)
+    
     # Find possible roots (nodes without cycles)
     possible_roots = found_cicle(jelouses, True)
     for root in possible_roots:
         # Build the graph and determine if it's possible to solve
-        posible, graph, priority = build_graph(boys, jelouses, friends, root)
+        posible, graph, priority = build_graph(boys_gen, jelouses, friends, root)
         if not posible:
             print("impossible")
             break
@@ -50,6 +84,9 @@ def evaluate(boys, jelouses, friends, root=None):
 
 
 def build_graph(boys, jelouses, friends, root):
+    """
+    Builds the graph by excluding the root and creating paths and priorities.
+    """
     # Create a graph excluding the root
     graph = create_graph(jelouses, root)
 
@@ -72,13 +109,17 @@ def build_graph(boys, jelouses, friends, root):
 
 
 def print_solution(solution):
-    # Format and print the solution
+    """
+    Formats and prints the solution.
+    """
     solution = " ".join(solution)
     print(solution)
 
 
 def create_priority(root, unpriorited_path, friend_root, boys):
-    # Create a priority list for traversal
+    """
+    Creates a priority list for traversal.
+    """
     priority = []
     priority.append(root)
 
@@ -93,37 +134,27 @@ def create_priority(root, unpriorited_path, friend_root, boys):
 
 
 def create_paths(graph, jelous_root, friend_root):
-    # Get paths for the jealous and friend relationships
+    """
+    Creates paths for the jealous and friend relationships.
+    """
     path_root_friend = path(graph, friend_root)
     unpriorited_path = path(graph, jelous_root)
     return path_root_friend, unpriorited_path
 
 
-def what_is_the_roots(graph):
-    # Find the nodes with the highest number of incoming edges
-    list_of_nodes = []
-    max_sum = 0
-    for node_check in graph:
-        node_sum = 0
-        for node_compare in graph:
-            if node_check == graph[node_compare]:
-                node_sum += 1
-        if node_sum > max_sum:
-            max_sum = node_sum
-        if node_sum == max_sum:
-            list_of_nodes.append(node_check)
-    return list_of_nodes
-
-
 def create_graph(jelouses, root):
-    # Create a copy of the jealousy dictionary and remove the root
+    """
+    Creates a copy of the jealousy dictionary and removes the root.
+    """
     graph = jelouses.copy()
     del graph[root]
     return graph
 
 
 def path(graph, node):
-    # Follow the path from a node until it ends
+    """
+    Follows the path from a node until it ends.
+    """
     path = []
     current = node
     while current in graph:
@@ -133,7 +164,9 @@ def path(graph, node):
 
 
 def break_cicles(graph, node, friends):
-    # Break cycles in the graph by modifying edges
+    """
+    Breaks cycles in the graph by modifying edges.
+    """
     friend_node = friends[node]
     graph[friend_node] = node
 
@@ -158,7 +191,9 @@ def break_cicles(graph, node, friends):
 
 
 def found_cicle(graph, need_posible_roots=False):
-    # Check if the graph contains a cycle
+    """
+    Checks if the graph contains a cycle.
+    """
     visited = set()
     possible_roots = []
 
@@ -182,9 +217,11 @@ def found_cicle(graph, need_posible_roots=False):
             current = graph[current]
     return False  # No cycle found
 
-
+#@decoreitor
 def dfs(graph_origen, root, boys):
-    # Perform a depth-first search (DFS) on the graph
+    """
+    Performs a depth-first search (DFS) on the graph.
+    """
     graph = {}
 
     # Initialize the graph structure
@@ -222,7 +259,9 @@ def dfs(graph_origen, root, boys):
 
 
 def is_correct(solucio, jelouses, friends):
-    # Check if the solution satisfies the jealousy and friendship constraints
+    """
+    Checks if the solution satisfies the jealousy and friendship constraints.
+    """
     posicions = {node: i for i, node in enumerate(solucio)}
 
     for node in solucio:
