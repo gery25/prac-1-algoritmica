@@ -53,7 +53,7 @@ def boys_generator(boys):
         yield boy
 
 
-def evaluate(boys, jelouses, friends, root=None):
+def evaluate(boys, jelouses, friends, fitxer_sortida = None):
     """
     Evaluates the solution by finding possible roots, building the graph,
     and checking if the solution is valid.
@@ -79,7 +79,7 @@ def evaluate(boys, jelouses, friends, root=None):
                     break
                 continue
             # Print the valid solution
-            print_solution(solution)
+            print_solution(solution, fitxer_sortida)
             break
 
 
@@ -108,12 +108,16 @@ def build_graph(boys, jelouses, friends, root):
     return posible, graph, priority
 
 
-def print_solution(solution):
+def print_solution(solution, fitxer_sortida = None):
     """
     Formats and prints the solution.
     """
     solution = " ".join(solution)
-    print(solution)
+    if fitxer_sortida is None:
+        print(solution)
+    else:
+        with open(fitxer_sortida, "w") as infile:
+            infile.write(solution)
 
 
 def create_priority(root, unpriorited_path, friend_root, boys):
@@ -281,4 +285,9 @@ if __name__ == "__main__":
 
     # Read input and evaluate the solution
     boys, jelouses, friends = illa(sys.argv[1])
-    evaluate(boys, jelouses, friends)
+    if len(sys.argv) == 3:
+
+        evaluate(boys, jelouses, friends, sys.argv[2])
+
+    else:
+        evaluate(boys, jelouses, friends)
