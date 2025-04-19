@@ -1,293 +1,404 @@
+#!/usr/bin/env python3
+"""
+Illa Problem Solver Module
+
+This module implements a solution for the island problem, where boys have
+jealousy and friendship relationships that need to be satisfied.
+"""
+
 import os
-from itertools import permutations
+import sys
 import time
 
-def decoreitor(funcio):
-    """
-    Decorator to measure the execution time of a function.
-    """
-    def funcio_wrapper(*args, **kwargs):
-        print("Starting DFS")
-        temps_inici = time.time()
-        resultat = funcio(*args, **kwargs)
-        temps_final = time.time()
-        temps_total = temps_final - temps_inici
-        print(f'Time taken: {temps_total} seconds')
-        return resultat
-    return funcio_wrapper
 
+class IllaProblemSolver:
+    """Class to handle the island problem solving logic."""
 
-def illa(nom_arxiu_entrada):
-    """
-    Reads the input file and builds dictionaries for jealousies and friendships,
-    as well as a list of boys.
-    """
-    # Check if the input file exists
-    if not os.path.exists(nom_arxiu_entrada):
-        print(f"File not found: {nom_arxiu_entrada}")
-        return
+    def __init__(self):
+        """Initialize the solver with empty data structures."""
+        self.boys_list = []
+        self.jealousy_map = {}
+        self.friendship_map = {}
 
-    # Open the input file and read its lines
-    lines = []
-    with open(nom_arxiu_entrada, "r") as infile:
-        for line in infile:
-            lines.append(line.strip())
+    @staticmethod
+    def time_decorator(function):
+        """Decorator to measure function execution time."""
+        def wrapper(*args, **kwargs):
+            print("Starting DFS")
+            start_time = time.time()
+            result = function(*args, **kwargs)
+            end_time = time.time()
+            print(f'Time taken: {end_time - start_time} seconds')
+            return result
+        return wrapper
 
-    # Build dictionaries for jealousies and friendships, and a list of boys
-    jelouses = {}  # Who is jelouses of who
-    friends = {}   # Who is friends with who
-    boys = []      # List of all boys
-    for line in lines:
-        name, jelous, friend = line.split()
-        boys.append(name)
-        jelouses[name] = jelous
-        friends[name] = friend
-    return boys, jelouses, friends
+    def read_island_file(self, input_filename):
+        """
+        Read and parse the input file containing boy relationships.
 
+        Args:
+            input_filename (str): Path to the input file
 
-def boys_generator(boys):
-    """
-    Generator to iterate over the list of boys.
-    """
-    for boy in boys:
-        yield boy
+        Returns:
+            tuple: (boys_list, jealousy_map, friendship_map) or (None, None, None) on error
+        """
+        if not os.path.exists(input_filename):
+            print(f"File not found: {input_filename}")
+            return None, None, None
 
+        try:
+            with open(input_filename, "r", encoding='utf-8') as infile:
+                input_lines = [line.strip() for line in infile]
 
-def evaluate(boys, jelouses, friends, fitxer_sortida = None):
-    """
-    Evaluates the solution by finding possible roots, building the graph,
-    and checking if the solution is valid.
-    """
-    boys_gen = boys_generator(boys)
-    
-    # Find possible roots (nodes without cycles)
-    possible_roots = found_cicle(jelouses, True)
-    for root in possible_roots:
-        # Build the graph and determine if it's possible to solve
-        posible, graph, priority = build_graph(boys_gen, jelouses, friends, root)
-        if not posible:
-            print("impossible")
-            break
-        else:
-            # Generate a solution using DFS
-            solution = dfs(graph, root, priority)
-            # Check if the solution is valid
-            if not is_correct(solution, jelouses, friends):
-                # If it's the last possible root and still invalid, print "impossible"
-                if possible_roots.index(root) == len(possible_roots) - 1:
-                    print("impossible")
-                    break
+            for line in input_lines:
+                boy_name, jealous_of, friend = line.split()
+                self.boys_list.append(boy_name)
+                self.jealousy_map[boy_name] = jealous_of
+                self.friendship_map[boy_name] = friend
+
+            return self.boys_list, self.jealousy_map, self.friendship_map
+
+        except (IOError, ValueError) as error:
+            print(f"Error processing file: {error}")
+            return None, None, None
+
+    def evaluate_solution(self, output_file=None):
+        """
+        Find a valid solution that satisfies all constraints.
+
+        Args:
+            output_file (str, optional): Path to output file. Defaults to None.
+        """
+        possible_roots = self.find_cycle(self.jealousy_map, find_roots=True)
+
+        for root_node in possible_roots:
+            is_valid, graph, priority_list = self.build_graph(root_node)
+
+            if not is_valid:
                 continue
-            # Print the valid solution
-            print_solution(solution, fitxer_sortida)
-            break
 
+            solution = self.depth_first_search(graph, root_node, priority_list)
 
-def build_graph(boys, jelouses, friends, root):
-    """
-    Builds the graph by excluding the root and creating paths and priorities.
-    """
-    # Create a graph excluding the root
-    graph = create_graph(jelouses, root)
+            if self.is_solution_valid(solution):
+                self.print_solution(solution, output_file)
+                return
 
-    # Get the jealous and friend relationships of the root
-    jelous_root = jelouses[root]
-    friend_root = friends[root]
+        print("impossible")
 
-    # Create paths for the jealous and friend relationships
-    path_root_friend, unpriorited_path = create_paths(graph, jelous_root, friend_root)
-    # Create a priority list for traversal
-    priority = create_priority(root, unpriorited_path, friend_root, boys)
+    def build_graph(self, root_node):
+        """
+        Build a directed graph excluding the root node and establish relationships.
 
-    # Check if the jealous person is in the path to the friend
-    if jelous_root in path_root_friend:
-        # Break cycles if necessary
-        graph, posible = break_cicles(graph, root, friends)
-    else:
-        posible = True
-    return posible, graph, priority
+        Args:
+            root_node (str): The root node to exclude
 
+        Returns:
+            tuple: (is_valid, graph, priority_list)
+        """
+        graph = self.create_graph_without_root(root_node)
+        jealous_of_root = self.jealousy_map[root_node]
+        friend_of_root = self.friendship_map[root_node]
+        friend_path, jealous_path = self.find_paths(graph, jealous_of_root, friend_of_root)
+        priority_list = self.create_priority_list(root_node, jealous_path, friend_of_root)
 
-def print_solution(solution, fitxer_sortida = None):
-    """
-    Formats and prints the solution.
-    """
-    solution = " ".join(solution)
-    if fitxer_sortida is None:
-        print(solution)
-    else:
-        with open(fitxer_sortida, "w") as infile:
-            infile.write(solution)
+        if jealous_of_root in friend_path:
+            graph, is_valid = self.break_cycles(graph, root_node)
+        else:
+            is_valid = True
 
+        return is_valid, graph, priority_list
 
-def create_priority(root, unpriorited_path, friend_root, boys):
-    """
-    Creates a priority list for traversal.
-    """
-    priority = []
-    priority.append(root)
+    @staticmethod
+    def print_solution(solution, output_file=None):
+        """
+        Format and output the solution.
 
-    if friend_root not in priority:
-        priority.append(friend_root)
+        Args:
+            solution (list): List of boys in correct order
+            output_file (str, optional): Path to output file. Defaults to None.
+        """
+        solution_str = " ".join(solution)
+        if output_file is None:
+            print(solution_str)
+        else:
+            try:
+                with open(output_file, "w", encoding='utf-8') as outfile:
+                    outfile.write(solution_str)
+            except IOError as error:
+                print(f"Error writing to file: {error}")
 
-    for node in boys:
-        if node not in priority:
-            if node not in unpriorited_path:
-                priority.append(node)
-    return priority
+    def create_priority_list(self, root_node, jealous_path, friend_of_root):
+        """
+        Create a priority list for traversal.
 
+        Args:
+            root_node (str): The root node
+            jealous_path (list): Path of jealousy relationships
+            friend_of_root (str): Friend of the root node
 
-def create_paths(graph, jelous_root, friend_root):
-    """
-    Creates paths for the jealous and friend relationships.
-    """
-    path_root_friend = path(graph, friend_root)
-    unpriorited_path = path(graph, jelous_root)
-    return path_root_friend, unpriorited_path
+        Returns:
+            list: Priority list for traversal
+        """
+        priority_list = [root_node]
 
+        if friend_of_root not in priority_list:
+            priority_list.append(friend_of_root)
 
-def create_graph(jelouses, root):
-    """
-    Creates a copy of the jealousy dictionary and removes the root.
-    """
-    graph = jelouses.copy()
-    del graph[root]
-    return graph
+        for node in self.boys_list:
+            if node not in priority_list and node not in jealous_path:
+                priority_list.append(node)
 
+        return priority_list
 
-def path(graph, node):
-    """
-    Follows the path from a node until it ends.
-    """
-    path = []
-    current = node
-    while current in graph:
-        path.append(current)
-        current = graph[current]
-    return path
+    def find_paths(self, graph, jealous_of_root, friend_of_root):
+        """
+        Create paths for the jealous and friend relationships.
 
+        Args:
+            graph (dict): The graph
+            jealous_of_root (str): The node that is jealous of the root
+            friend_of_root (str): The friend of the root
 
-def break_cicles(graph, node, friends):
-    """
-    Breaks cycles in the graph by modifying edges.
-    """
-    friend_node = friends[node]
-    graph[friend_node] = node
+        Returns:
+            tuple: (friend_path, jealous_path)
+        """
+        friend_path = self.path(graph, friend_of_root)
+        jealous_path = self.path(graph, jealous_of_root)
+        return friend_path, jealous_path
 
-    seen_states = set()  # Track visited graph states
+    def create_graph_without_root(self, root_node):
+        """
+        Create a copy of the jealousy dictionary and remove the root.
 
-    exist_cicle = found_cicle(graph)
+        Args:
+            root_node (str): The root node to remove
 
-    while exist_cicle:
-        node = friends[node]
-        graph_state = str(graph)
+        Returns:
+            dict: The graph without the root node
+        """
+        graph = self.jealousy_map.copy()
+        del graph[root_node]
+        return graph
 
-        if graph_state in seen_states:
-            return graph, False  # Cycle cannot be resolved
-        seen_states.add(graph_state)
+    @staticmethod
+    def path(graph, node):
+        """
+        Follow the path from a node until it ends.
 
-        del graph[node]  # Remove the problematic node
+        Args:
+            graph (dict): The graph
+            node (str): The starting node
 
-        graph[friends[friends[node]]] = friends[node]  # Redirect edges
-
-        exist_cicle = found_cicle(graph)
-    return graph, True
-
-
-def found_cicle(graph, need_posible_roots=False):
-    """
-    Checks if the graph contains a cycle.
-    """
-    visited = set()
-    possible_roots = []
-
-    for node in graph:
-        if node in visited:
-            continue
-        # Follow the path from the node to detect cycles
-        path = set()
+        Returns:
+            list: The path from the node
+        """
+        path = []
         current = node
-
         while current in graph:
-            if current in path:
-                if need_posible_roots:
-                    return possible_roots
-                return True  # Cycle detected
-            if current in visited:
-                break
-            path.add(current)
-            visited.add(current)
-            possible_roots.append(current)
+            path.append(current)
             current = graph[current]
-    return False  # No cycle found
+        return path
 
-#@decoreitor
-def dfs(graph_origen, root, boys):
-    """
-    Performs a depth-first search (DFS) on the graph.
-    """
-    graph = {}
+    def break_cycles(self, graph, node):
+        """
+        Break cycles in the graph by modifying edges.
 
-    # Initialize the graph structure
-    for node in set(dict(graph_origen).keys() | set(dict(graph_origen).values())):
-        graph[node] = []
+        Args:
+            graph (dict): The graph
+            node (str): The node to start breaking cycles from
 
-    for node, father in dict(graph_origen).items():
-        graph[father].append(node)
+        Returns:
+            tuple: (graph, is_valid)
+        """
+        friend_node = self.friendship_map[node]
+        graph[friend_node] = node
+        seen_states = set()
+        exist_cycle = self.find_cycle(graph)
 
-    # Define a priority function for sorting children
-    def priority(node):
-        if node in boys:
-            return list(boys).index(node)
-        return len(boys)
+        while exist_cycle:
+            node = self.friendship_map[node]
+            graph_state = str(graph)
 
-    # Sort children by priority
-    for node, children in graph.items():
-        graph[node] = sorted(children, key=priority, reverse=True)
+            if graph_state in seen_states:
+                return graph, False
 
-    visiteds = set()
-    stack = [root]
-    path = []
+            seen_states.add(graph_state)
+            del graph[node]
+            graph[self.friendship_map[self.friendship_map[node]]] = self.friendship_map[node]
+            exist_cycle = self.find_cycle(graph)
 
-    # Traverse the graph using DFS
-    while stack:
-        node = stack.pop()
-        if node not in visiteds:
-            visiteds.add(node)
-            path.append(node)
-            children = graph.get(node, [])
-            for child in children:
-                if child not in visiteds:
-                    stack.append(child)
-    return path
+        return graph, True
+
+    @staticmethod
+    def find_cycle(graph, find_roots=False):
+        """
+        Check if the graph contains a cycle.
+
+        Args:
+            graph (dict): The graph
+            find_roots (bool, optional): Whether to find possible root nodes. 
+            Defaults to False.
+
+        Returns:
+            bool or list: True if cycle found, False otherwise, 
+            or list of possible roots if find_roots is True
+        """
+        visited = set()
+        possible_roots = []
+
+        for node in graph:
+            if node in visited:
+                continue
+
+            path = set()
+            current = node
+
+            while current in graph:
+                if current in path:
+                    if find_roots:
+                        return possible_roots
+                    return True
+
+                if current in visited:
+                    break
+
+                path.add(current)
+                visited.add(current)
+                possible_roots.append(current)
+                current = graph[current]
+
+        return False
+
+    @staticmethod
+    def depth_first_search(graph_origen, root, boys):
+        """
+        Perform a depth-first search (DFS) on the graph.
+
+        Args:
+            graph_origen (dict): The original graph
+            root (str): The root node
+            boys (list): List of boys
+
+        Returns:
+            list: The DFS traversal path
+        """
+        graph = {}
+
+        for node in set(dict(graph_origen).keys() | set(dict(graph_origen).values())):
+            graph[node] = []
+
+        for node, father in dict(graph_origen).items():
+            graph[father].append(node)
+
+        def priority(node):
+            if node in boys:
+                return list(boys).index(node)
+            return len(boys)
+
+        for node, children in graph.items():
+            graph[node] = sorted(children, key=priority, reverse=True)
+
+        visiteds = set()
+        stack = [root]
+        path = []
+
+        while stack:
+            node = stack.pop()
+            if node not in visiteds:
+                visiteds.add(node)
+                path.append(node)
+                children = graph.get(node, [])
+                for child in children:
+                    if child not in visiteds:
+                        stack.append(child)
+
+        return path
+
+    def is_solution_valid(self, solution):
+        """
+        Check if the solution satisfies the jealousy and friendship constraints.
+
+        Args:
+            solution (list): The solution path
+
+        Returns:
+            bool: True if valid, False otherwise
+        """
+        positions = {node: i for i, node in enumerate(solution)}
+
+        for node in solution:
+            jealous_of = self.jealousy_map[node]
+            friend = self.friendship_map[node]
+
+            if jealous_of in positions and positions[node] < positions[jealous_of]:
+                is_friend_between = positions[node] < positions[friend] < positions[jealous_of]
+                if friend not in positions or not is_friend_between:
+                    return False
+
+        return True
+
+    @staticmethod
+    #@time_decorator
+    def read_console_input():
+        """
+        Read input from the command line.
+
+        Returns:
+            tuple: (boys_list, jealousy_map, friendship_map)
+        """
+        print("Enter data (format: name jealous friend). Ctrl+D to finish:")
+        lines = []
+
+        try:
+            while True:
+                line = input().strip()
+                if line:
+                    parts = line.split()
+                    if len(parts) != 3:
+                        print("Error: Each line must have 3 names separated by spaces")
+                        continue
+                    lines.append(line)
+        except EOFError:
+            pass
+
+        jealousy_map = {}
+        friendship_map = {}
+        boys_list = []
+
+        for line in lines:
+            boy_name, jealous_of, friend = line.split()
+            boys_list.append(boy_name)
+            jealousy_map[boy_name] = jealous_of
+            friendship_map[boy_name] = friend
+
+        return boys_list, jealousy_map, friendship_map
 
 
-def is_correct(solucio, jelouses, friends):
-    """
-    Checks if the solution satisfies the jealousy and friendship constraints.
-    """
-    posicions = {node: i for i, node in enumerate(solucio)}
+def main():
+    """Main entry point of the program."""
+    solver = IllaProblemSolver()
 
-    for node in solucio:
-        jelous = jelouses[node]
-        friend = friends[node]
+    if len(sys.argv) == 1:
+        boys, _, _ = solver.read_console_input()
+        if boys:
+            solver.evaluate_solution()
 
-        # Check if the jealous person appears after the node
-        if jelous in posicions and posicions[node] < posicions[jelous]:
-            # Check if the friend is not between the node and the jealous person
-            if friend not in posicions or not (posicions[node] < posicions[friend] < posicions[jelous]):
-                return False
-    return True
+    elif len(sys.argv) == 2:
+        boys, _, _ = solver.read_island_file(sys.argv[1])
+        if boys:
+            solver.evaluate_solution()
+
+    elif len(sys.argv) == 3:
+        boys, _, _ = solver.read_island_file(sys.argv[1])
+        if boys:
+            solver.evaluate_solution(sys.argv[2])
+
+    else:
+        print("Usage:")
+        print("1. Console input: python3 illa.py")
+        print("2. Input file: python3 illa.py input.txt")
+        print("3. Input and output: python3 illa.py input.txt output.txt")
 
 
 if __name__ == "__main__":
-    import sys
-
-    # Read input and evaluate the solution
-    boys, jelouses, friends = illa(sys.argv[1])
-    if len(sys.argv) == 3:
-
-        evaluate(boys, jelouses, friends, sys.argv[2])
-
-    else:
-        evaluate(boys, jelouses, friends)
+    main()
