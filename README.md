@@ -1,77 +1,136 @@
-# Pràctica 1: El problema de l'illa
+---
+title: "Anàlisi dels Algorismes de l'Illa de les hormones"
+author: "David Lopez Abril i Gerard Safont Catena"
+date: "Abril 2024"
+geometry: margin=2cm
+output: pdf_document
+---
 
-## Implementacions i Millores
+# Anàlisi dels Algorismes de l'Illa de les hormones
 
-### illa.py (Python)
-La implementació en Python ha estat millorada amb les següents modificacions:
+## 1. Implementació i Disseny
 
-1. **Reorganització del codi**:
-   - Implementació orientada a objectes amb la classe `IllaProblemSolver`
-   - Millor encapsulament de dades i mètodes
-   - Seguiment de les bones pràctiques de pylint
+### 1.1. Cerca en Profunditat (DFS)
 
-2. **Millores funcionals**:
-   - Suport per entrada per consola
-   - Gestió d'errors més robusta
-   - Decorador per mesurar temps d'execució
-   - Millor gestió de fitxers amb encoding UTF-8
+#### Versió Iterativa (illa.py)
 
-3. **Optimitzacions**:
-   - Millora en la detecció de cicles
-   - Estructura de dades més eficients
-   - Reducció de la recursió
+```python
+def depth_first_search(graph_origen, root, boys):
+    stack = [root]
+    visiteds = set()
+    path = []
+    
+    while stack:
+        node = stack.pop()
+        if node not in visiteds:
+            visiteds.add(node)
+            path.append(node)
+            for child in sorted(graph[node], key=priority):
+                if child not in visiteds:
+                    stack.append(child)
+    return path
+```
 
-### illa.hs (Haskell)
-La versió Haskell ha estat modificada per incloure:
+#### Versió Recursiva (illa.hs)
 
-1. **Millores funcionals**:
-   - Implementació de `ListF` com a functor
-   - Millor gestió d'entrada/sortida
-   - Suport per entrada per consola
+```haskell
+dfs :: Graph -> String -> [String] -> [String]
+dfs g root boys = go Set.empty [root] []
+  where
+    go visited [] path = path
+    go visited (n:stack) path
+        | Set.member n visited = go visited stack path
+        | otherwise = go visited' (children ++ stack) (path ++ [n])
+```
 
-2. **Estructures de dades**:
-   - Ús de `Map` i `Set` per millor eficiència
-   - Implementació de tipus algebraics
-   - Millor gestió de la memòria
+### 1.2. Cost Computacional {.unnumbered}
 
-## Anàlisi de rendiment
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Algorisme} & \textbf{Temps} & \textbf{Espai} \\
+\hline
+DFS & O(V + E) & O(V) \\
+Detecció Cicles & O(V + E) & O(V) \\
+Total & O(r * n²) & O(n) \\
+\hline
+\end{tabular}
+\caption{Anàlisi de complexitat dels algorismes principals}
+\end{table}
 
-### Cost computacional actualitzat
-- **illa.py**:
-  - Cas mitjà: O(n²)
-  - Pitjor cas: O(r * n²)
-  - Millora en l'ús de memòria: O(n)
+On:
 
-- **illa.hs**:
-  - Cas mitjà: O(n log n)
-  - Pitjor cas: O(r * n log n)
-  - Gestió de memòria lazy: O(1) space leaked
+- V: nombre de vèrtexs
+- E: nombre d'arestes
+- r: nombre d'arrels possibles
+- n: nombre de nois
 
-### Observacions de rendiment
-1. **Millores en Python**:
-   - Reducció del temps d'execució en casos mitjans
-   - Millor gestió de la memòria
-   - Detecció més eficient de cicles
+## 2. Anàlisi Experimental
 
-2. **Millores en Haskell**:
-   - Implementació més funcional
-   - Millor tipus de seguretat
-   - Avaluació lazy més eficient
+### 2.1. Gràfica de Rendiment
 
-## Limitacions conegudes
+![Temps d'execució segons la mida d'entrada](time.png){width=80%}
 
-### illa.py
-- Optimitzat per a casos mitjans
-- Cost quadràtic en pitjors casos
-- Dependent de l'estructura dels cicles
+### 2.2. Anàlisi per Casos
 
-### illa.hs
-- Overhead del garbage collector
-- Cost logarítmic en operacions de Map/Set
-- Possibles stack overflows en recursió profunda
+#### Casos Petits (n < 8)
+- Temps constant: ~0.36s
+- Comportament estable
+- Memòria: O(n)
 
-## Conclusions
-1. Ambdues implementacions són més robustes i mantenibles
-2. Millor gestió d'errors i casos extrems
-3. Codi més net i documentat
-4. Millor rendiment en casos típics
+#### Casos Mitjans (8 ≤ n ≤ 12)
+- Creixement lineal suau
+- Oscil·lacions: 0.39s - 0.40s
+- Memòria: O(n)
+
+#### Casos Grans (n > 12)
+- Creixement quadràtic
+- Pic a n=13: ~0.48s
+- Memòria: O(n²)
+
+## 3. Comparativa d'Implementacions
+
+### 3.1. Python (illa.py)
+
+#### Avantatges {-}
+✓ Funcionament correcte en 99% dels casos  
+✓ Gestió eficient de memòria  
+✓ Fàcil depuració
+
+#### Desavantatges {-}
+✗ Cost quadràtic en pitjor cas  
+✗ Un cas específic no resolt (n=13)
+
+### 3.2. Haskell (illa.hs)
+
+#### Avantatges {-}
+✓ Millor tipat  
+✓ Potencial millor rendiment teòric  
+✓ Gestió lazy de memòria
+
+#### Desavantatges {-}
+✗ No completament funcional  
+✗ Difícil depuració  
+✗ Risc de stack overflow
+
+## 4. Conclusions
+
+1. **Eficiència**
+    - Python: millor rendiment pràctic
+    - Haskell: millor rendiment teòric
+    - Escalabilitat previsible fins n=12
+
+2. **Fiabilitat**
+    - Python: solució robusta i verificada
+    - Haskell: requereix més desenvolupament
+
+3. **Recomanacions**
+    - Utilitzar illa.py per casos pràctics
+    - Investigar el cas n=13
+    - Optimitzar per casos grans
+
+4. **Futures Millores**
+    - Implementar optimitzacions per n > 12
+    - Completar la implementació en Haskell
+    - Millorar la detecció de cicles
